@@ -1,0 +1,83 @@
+import sys
+import json
+from collections import deque, defaultdict
+
+# Function to load the movie data and build a graph
+def load_data(filename):
+    """Load the dataset into a graph where each actor is connected to movies."""
+    actors = defaultdict(set)  # maps actor to a set of movies
+    movies = defaultdict(set)  # maps movie to a set of actors
+    
+    with open(filename, "r") as f:
+        data = json.load(f)
+    
+    # Build the graph by populating the actors and movies dictionaries
+    for movie in data:
+        movie_title = movie["title"]
+        for actor in movie["cast"]:
+            actors[actor].add(movie_title)  # Actor is connected to this movie
+            movies[movie_title].add(actor)  # Movie is connected to this actor
+    
+    return actors, movies
+
+# Function to find the degrees of separation using BFS
+def find_degrees_of_separation(start_actor, end_actor, actors, movies):
+    """Find the shortest path (in degrees) between two actors using BFS."""
+    # BFS setup
+    queue = deque([(start_actor, [], set([start_actor]))])  # (current_actor, path_so_far, visited_actors)
+    
+    while queue:
+        current_actor, path_so_far, visited_actors = queue.popleft()
+
+        # If we reached the target actor, return the path
+        if current_actor == end_actor:
+            return path_so_far
+        
+        # Explore all movies that the current actor is in
+        for movie in actors[current_actor]:
+            # Find all co-stars in the current movie
+            for co_actor in movies[movie]:
+                if co_actor not in visited_actors:
+                    visited_actors.add(co_actor)
+                    queue.append((co_actor, path_so_far + [(current_actor, co_actor, movie)], visited_actors))
+    
+    return None  # No path found
+
+# Function to print the path in the desired format
+def print_path(path):
+    """Print the degrees of separation and movie connections."""
+    if not path:
+        print("No connection found.")
+        return
+
+    print(f"{len(path)} degrees of separation.")
+    for i, (actor1, actor2, movie) in enumerate(path, 1):
+        print(f"{i}: {actor1} and {actor2} starred in {movie}")
+
+# Main function
+def main(filename, start_actor, end_actor):
+    """Main function to load data, find the degrees of separation, and print the result."""
+    print("Loading data...")
+    actors, movies = load_data(filename)
+    print("Data loaded.")
+    
+    print(f"Name: {start_actor}")
+    print(f"Name: {end_actor}")
+    
+    # Find the path (degrees of separation)
+    path = find_degrees_of_separation(start_actor, end_actor, actors, movies)
+    
+    # Print the result
+    print_path(path)
+
+# Run the program if it's called from the command line
+if __name__ == "__main__":
+    if len(sys.argv) != 4:
+        print("Usage: python degrees.py <data_file> <start_actor> <end_actor>")
+        sys.exit(1)
+    
+    filename = sys.argv[1]
+    start_actor = sys.argv[2]
+    end_actor = sys.argv[3]
+    
+    main(filename, start_actor, end_actor)
